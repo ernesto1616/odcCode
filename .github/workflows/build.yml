@@ -1,0 +1,35 @@
+name: Build ODC External Library
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Publish
+        run: dotnet publish -c Release -o ./publish
+
+      - name: Zip the library
+        run: |
+          cd publish
+          zip -r ../CompensationExportLibrary.zip .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CompensationExportLibrary
+          path: CompensationExportLibrary.zip
