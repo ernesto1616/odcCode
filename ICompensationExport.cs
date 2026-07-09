@@ -8,7 +8,7 @@ namespace CompensationExportLibrary
     public interface ICompensationExport
     {
         [OSAction(
-            Description = "Creates a ZIP where each selected version is a folder containing its CSV",
+            Description = "Creates a ZIP where each selected version is a folder containing its CSV files",
             ReturnName = "ZipFile",
             ReturnDescription = "The generated ZIP as Binary Data")]
         byte[] GenerateCompensationZip(
