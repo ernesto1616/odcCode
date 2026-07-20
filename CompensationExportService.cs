@@ -21,8 +21,7 @@ namespace CompensationExportLibrary
                 ["GD"] = "ET4",
                 ["GC"] = "ET3",
                 ["GB"] = "ET2",
-                ["GA"] = "ET1",
-                ["G1"] = "ET0"
+                ["GA"] = "ET1"
             };
 
         private static readonly Dictionary<string, string> StGradeMap =
@@ -35,9 +34,19 @@ namespace CompensationExportLibrary
                 ["GD"] = "T4",
                 ["GC"] = "T3",
                 ["GB"] = "T2",
-                ["GA"] = "T1",
-                ["G1"] = "T0"
+                ["GA"] = "T1"
             };
+
+        // Grades that make up the "GE+" and "GA-GD" bands used by the U-scale reports.
+        private static readonly HashSet<string> GePlusGrades =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GE", "GF", "GG", "GH" };
+
+        private static readonly HashSet<string> GaToGdGrades =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GA", "GB", "GC", "GD" };
+
+        // Grades that must never be displayed in any report (including the master table).
+        private static readonly HashSet<string> ExcludedGrades =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "G1" };
 
         public byte[] GenerateCompensationZip(List<CompensationVersionExport> versions)
         {
@@ -72,6 +81,16 @@ namespace CompensationExportLibrary
                         archive,
                         $"{folderName}/ST Scale Output Report.csv",
                         BuildStCsv(rows));
+
+                    AddEntry(
+                        archive,
+                        $"{folderName}/UC_UA Scale Output Report.csv",
+                        BuildUcUaCsv(rows));
+
+                    AddEntry(
+                        archive,
+                        $"{folderName}/UJ Scale Output Report.csv",
+                        BuildUjCsv(rows));
                 }
             }
 
@@ -83,6 +102,11 @@ namespace CompensationExportLibrary
             var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
             using var entryStream = entry.Open();
             entryStream.Write(content, 0, content.Length);
+        }
+
+        private static bool IsExcluded(CompensationRow r)
+        {
+            return ExcludedGrades.Contains((r.Grade ?? string.Empty).Trim());
         }
 
         private static byte[] BuildStaffCsv(List<CompensationRow> rows)
@@ -117,6 +141,9 @@ namespace CompensationExportLibrary
 
             foreach (var r in rows)
             {
+                if (IsExcluded(r))
+                    continue;
+
                 sb.AppendLine(string.Join(",", new[]
                 {
                     Escape(r.SalaryScaleModelName),
@@ -283,6 +310,169 @@ namespace CompensationExportLibrary
             }
 
             return WithUtf8Bom(sb.ToString());
+        }
+
+        private static byte[] BuildUcUaCsv(List<CompensationRow> rows)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine(string.Join(",", new[]
+            {
+                "Structure Model Name",
+                "Effective Date",
+                "Region",
+                "Country",
+                "Salary Plan",
+                "Pay Type",
+                "Category",
+                "Pay Frequency",
+                "Grade Group",
+                "U Grade",
+                "UC/UA Minimum",
+                "UC/UA Midpoint",
+                "UC/UA Maximum",
+                "Currency",
+                "Code",
+                "UC/UA Status",
+                "Scale Rounding",
+                "Total Merit Increase",
+                "Structure Adjustment",
+                "Merit Element",
+                "CPI Inflation",
+                "HQ/CO"
+            }.Select(Escape)));
+
+            AppendUcUaRow(sb, rows, GePlusGrades, "GE+", "UC");
+            AppendUcUaRow(sb, rows, GaToGdGrades, "GA-GD", "UA");
+
+            return WithUtf8Bom(sb.ToString());
+        }
+
+        private static void AppendUcUaRow(
+            StringBuilder sb,
+            List<CompensationRow> rows,
+            HashSet<string> grades,
+            string gradeGroup,
+            string uGrade)
+        {
+            var groupRows = rows
+                .Where(r => grades.Contains((r.Grade ?? string.Empty).Trim()))
+                .ToList();
+
+            if (groupRows.Count == 0)
+                return;
+
+            // Common fields are copied from the first row in the band.
+            var t = groupRows[0];
+
+            var min = groupRows.Min(r => r.ProposedMinimum);
+            var max = groupRows.Max(r => r.ProposedMaximum);
+            var mid = (min + max) / 2m;
+
+            sb.AppendLine(string.Join(",", new[]
+            {
+                Escape(t.SalaryScaleModelName),
+                Escape(FormatDate(t.EffectiveDate)),
+                Escape(t.Region),
+                Escape(t.Country),
+                Escape(t.SalaryPlan),
+                Escape(t.PayType),
+                Escape("STAFF"),
+                Escape(t.PayFrequency),
+                Escape(gradeGroup),
+                Escape(uGrade),
+                FormatDecimal(min),
+                FormatDecimal(mid),
+                FormatDecimal(max),
+                Escape(t.Currency),
+                Escape(t.Code),
+                Escape(t.Status),
+                FormatDecimal(t.ScaleRounding),
+                FormatDecimal(t.TotalMeritIncrease),
+                FormatDecimal(t.StructureAdjustement),
+                FormatDecimal(t.MeritElement),
+                FormatDecimal(t.CPIInflation),
+                Escape(t.HCCO)
+            }));
+        }
+
+        private static byte[] BuildUjCsv(List<CompensationRow> rows)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine(string.Join(",", new[]
+            {
+                "Structure Model Name",
+                "Effective Date",
+                "Region",
+                "Country",
+                "Salary Plan",
+                "Pay Type",
+                "UJ Category",
+                "Pay Frequency",
+                "Grade Group",
+                "UJ Grade",
+                "UJ Minimum",
+                "UJ Midpoint",
+                "UJ Maximum",
+                "Currency",
+                "Code",
+                "UJ Status",
+                "Scale Rounding",
+                "Total Merit Increase",
+                "Structure Adjustment",
+                "Merit Element",
+                "CPI Inflation",
+                "HQ/CO"
+            }.Select(Escape)));
+
+            // UJ is derived from the GD row of the structure report.
+            var gd = rows.FirstOrDefault(
+                r => string.Equals((r.Grade ?? string.Empty).Trim(), "GD", StringComparison.OrdinalIgnoreCase));
+
+            if (gd != null)
+            {
+                var raw = (gd.ProposedMinimum + gd.ProposedMidpoint) / 2m;
+                var value = CeilingToMultiple(raw, gd.ScaleRounding);
+
+                sb.AppendLine(string.Join(",", new[]
+                {
+                    Escape(gd.SalaryScaleModelName),
+                    Escape(FormatDate(gd.EffectiveDate)),
+                    Escape(gd.Region),
+                    Escape(gd.Country),
+                    Escape(gd.SalaryPlan),
+                    Escape(gd.PayType),
+                    Escape("ET APPT"),
+                    Escape(gd.PayFrequency),
+                    Escape("GA-GD"),
+                    Escape("UJ"),
+                    FormatDecimal(value),
+                    FormatDecimal(value),
+                    FormatDecimal(value),
+                    Escape(gd.Currency),
+                    Escape(gd.Code),
+                    Escape(gd.Status),
+                    FormatDecimal(gd.ScaleRounding),
+                    FormatDecimal(gd.TotalMeritIncrease),
+                    FormatDecimal(gd.StructureAdjustement),
+                    FormatDecimal(gd.MeritElement),
+                    FormatDecimal(gd.CPIInflation),
+                    Escape(gd.HCCO)
+                }));
+            }
+
+            return WithUtf8Bom(sb.ToString());
+        }
+
+        // Rounds a value UP to the nearest multiple of "rounding" (ceiling behaviour).
+        // e.g. value=150, rounding=100 -> 200; value=100 exactly -> 100.
+        private static decimal CeilingToMultiple(decimal value, decimal rounding)
+        {
+            if (rounding <= 0)
+                return value;
+
+            return Math.Ceiling(value / rounding) * rounding;
         }
 
         private static string FormatDate(string value)
