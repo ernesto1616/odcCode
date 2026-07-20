@@ -348,7 +348,7 @@ namespace CompensationExportLibrary
             return WithUtf8Bom(sb.ToString());
         }
 
-        private static void AppendUcUaRow(
+                private static void AppendUcUaRow(
             StringBuilder sb,
             List<CompensationRow> rows,
             HashSet<string> grades,
@@ -367,7 +367,10 @@ namespace CompensationExportLibrary
 
             var min = groupRows.Min(r => r.ProposedMinimum);
             var max = groupRows.Max(r => r.ProposedMaximum);
-            var mid = (min + max) / 2m;
+
+            // Midpoint is the average of min and max, then rounded UP to the
+            // nearest multiple of Scale Rounding (ceiling behaviour).
+            var mid = CeilingToMultiple((min + max) / 2m, t.ScaleRounding);
 
             sb.AppendLine(string.Join(",", new[]
             {
@@ -395,6 +398,7 @@ namespace CompensationExportLibrary
                 Escape(t.HCCO)
             }));
         }
+
 
         private static byte[] BuildUjCsv(List<CompensationRow> rows)
         {
