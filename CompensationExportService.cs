@@ -427,11 +427,16 @@ namespace CompensationExportLibrary
             }.Select(Escape)));
 
             // UJ is derived from the GD row of the structure report.
-            var gd = rows.FirstOrDefault(
-                r => string.Equals((r.Grade ?? string.Empty).Trim(), "GD", StringComparison.OrdinalIgnoreCase));
+            // CompensationRow is a value type (struct), so we check for existence
+            // via Any(...) rather than a null comparison on FirstOrDefault.
+            var gdRows = rows
+                .Where(r => string.Equals((r.Grade ?? string.Empty).Trim(), "GD", StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
-            if (gd != null)
+            if (gdRows.Count > 0)
             {
+                var gd = gdRows[0];
+
                 var raw = (gd.ProposedMinimum + gd.ProposedMidpoint) / 2m;
                 var value = CeilingToMultiple(raw, gd.ScaleRounding);
 
