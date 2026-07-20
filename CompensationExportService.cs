@@ -192,10 +192,10 @@ namespace CompensationExportLibrary
                     Escape(r.Code),
                     Escape(r.Status),
                     FormatDecimal(r.ScaleRounding),
-                    FormatDecimal(r.TotalMeritIncrease),
-                    FormatDecimal(r.StructureAdjustement),
-                    FormatDecimal(r.MeritElement),
-                    FormatDecimal(r.CPIInflation),
+                    FormatPercent(r.TotalMeritIncrease),
+                    FormatPercent(r.StructureAdjustement),
+                    FormatPercent(r.MeritElement),
+                    FormatPercent(r.CPIInflation),
                     Escape(r.HCCO)
                 }));
             }
@@ -257,10 +257,10 @@ namespace CompensationExportLibrary
                     Escape(r.Code),
                     Escape(r.Status),
                     FormatDecimal(r.ScaleRounding),
-                    FormatDecimal(r.TotalMeritIncrease),
-                    FormatDecimal(r.StructureAdjustement),
-                    FormatDecimal(r.MeritElement),
-                    FormatDecimal(r.CPIInflation),
+                    FormatPercent(r.TotalMeritIncrease),
+                    FormatPercent(r.StructureAdjustement),
+                    FormatPercent(r.MeritElement),
+                    FormatPercent(r.CPIInflation),
                     Escape(r.HCCO)
                 }));
             }
@@ -330,10 +330,10 @@ namespace CompensationExportLibrary
                     Escape(r.Code),
                     Escape(r.Status),
                     FormatDecimal(r.ScaleRounding),
-                    FormatDecimal(r.TotalMeritIncrease),
-                    FormatDecimal(r.StructureAdjustement),
-                    FormatDecimal(r.MeritElement),
-                    FormatDecimal(r.CPIInflation),
+                    FormatPercent(r.TotalMeritIncrease),
+                    FormatPercent(r.StructureAdjustement),
+                    FormatPercent(r.MeritElement),
+                    FormatPercent(r.CPIInflation),
                     Escape(r.HCCO)
                 }));
             }
@@ -421,10 +421,10 @@ namespace CompensationExportLibrary
                 Escape(t.Code),
                 Escape(t.Status),
                 FormatDecimal(t.ScaleRounding),
-                FormatDecimal(t.TotalMeritIncrease),
-                FormatDecimal(t.StructureAdjustement),
-                FormatDecimal(t.MeritElement),
-                FormatDecimal(t.CPIInflation),
+                FormatPercent(t.TotalMeritIncrease),
+                FormatPercent(t.StructureAdjustement),
+                FormatPercent(t.MeritElement),
+                FormatPercent(t.CPIInflation),
                 Escape(t.HCCO)
             }));
         }
@@ -492,10 +492,10 @@ namespace CompensationExportLibrary
                     Escape(gd.Code),
                     Escape(gd.Status),
                     FormatDecimal(gd.ScaleRounding),
-                    FormatDecimal(gd.TotalMeritIncrease),
-                    FormatDecimal(gd.StructureAdjustement),
-                    FormatDecimal(gd.MeritElement),
-                    FormatDecimal(gd.CPIInflation),
+                    FormatPercent(gd.TotalMeritIncrease),
+                    FormatPercent(gd.StructureAdjustement),
+                    FormatPercent(gd.MeritElement),
+                    FormatPercent(gd.CPIInflation),
                     Escape(gd.HCCO)
                 }));
             }
@@ -536,6 +536,12 @@ namespace CompensationExportLibrary
         {
             return Math.Round(value, 2, MidpointRounding.AwayFromZero)
                 .ToString("0.00", CultureInfo.InvariantCulture);
+        }
+
+        // Formats a decimal and appends a percent sign.
+        private static string FormatPercent(decimal value)
+        {
+            return FormatDecimal(value) + "%";
         }
 
         private static byte[] WithUtf8Bom(string content)
