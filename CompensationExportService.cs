@@ -48,6 +48,22 @@ namespace CompensationExportLibrary
         private static readonly HashSet<string> ExcludedGrades =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "G1" };
 
+        // Canonical ascending display order (lowest grade first, GH last).
+        // Lower rank = displayed earlier. Unknown grades sort to the end.
+        private static readonly Dictionary<string, int> GradeOrder =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["G1"] = 0,
+                ["GA"] = 1,
+                ["GB"] = 2,
+                ["GC"] = 3,
+                ["GD"] = 4,
+                ["GE"] = 5,
+                ["GF"] = 6,
+                ["GG"] = 7,
+                ["GH"] = 8
+            };
+
         public byte[] GenerateCompensationZip(List<CompensationVersionExport> versions)
         {
             if (versions == null || versions.Count == 0)
@@ -109,6 +125,19 @@ namespace CompensationExportLibrary
             return ExcludedGrades.Contains((r.Grade ?? string.Empty).Trim());
         }
 
+        private static int GradeRank(CompensationRow r)
+        {
+            return GradeOrder.TryGetValue((r.Grade ?? string.Empty).Trim(), out var rank)
+                ? rank
+                : int.MaxValue;
+        }
+
+        // Returns rows sorted in canonical ascending grade order (GH last).
+        private static List<CompensationRow> OrderByGrade(IEnumerable<CompensationRow> rows)
+        {
+            return rows.OrderBy(GradeRank).ToList();
+        }
+
         private static byte[] BuildStaffCsv(List<CompensationRow> rows)
         {
             var sb = new StringBuilder();
@@ -139,7 +168,7 @@ namespace CompensationExportLibrary
                 "HQ/CO"
             }.Select(Escape)));
 
-            foreach (var r in rows)
+            foreach (var r in OrderByGrade(rows))
             {
                 if (IsExcluded(r))
                     continue;
@@ -204,7 +233,7 @@ namespace CompensationExportLibrary
                 "HQ/CO"
             }.Select(Escape)));
 
-            foreach (var r in rows)
+            foreach (var r in OrderByGrade(rows))
             {
                 if (!EtGradeMap.TryGetValue((r.Grade ?? string.Empty).Trim(), out var etGrade))
                     continue;
@@ -269,7 +298,7 @@ namespace CompensationExportLibrary
                 "HQ/CO"
             }.Select(Escape)));
 
-            foreach (var r in rows)
+            foreach (var r in OrderByGrade(rows))
             {
                 if (!StGradeMap.TryGetValue((r.Grade ?? string.Empty).Trim(), out var stGrade))
                     continue;
@@ -342,13 +371,14 @@ namespace CompensationExportLibrary
                 "HQ/CO"
             }.Select(Escape)));
 
-            AppendUcUaRow(sb, rows, GePlusGrades, "GE+", "UC");
+            // Ascending order: GA-GD (UA) first, GE+ (UC) last.
             AppendUcUaRow(sb, rows, GaToGdGrades, "GA-GD", "UA");
+            AppendUcUaRow(sb, rows, GePlusGrades, "GE+", "UC");
 
             return WithUtf8Bom(sb.ToString());
         }
 
-                private static void AppendUcUaRow(
+        private static void AppendUcUaRow(
             StringBuilder sb,
             List<CompensationRow> rows,
             HashSet<string> grades,
@@ -399,7 +429,6 @@ namespace CompensationExportLibrary
             }));
         }
 
-
         private static byte[] BuildUjCsv(List<CompensationRow> rows)
         {
             var sb = new StringBuilder();
@@ -432,7 +461,7 @@ namespace CompensationExportLibrary
 
             // UJ is derived from the GD row of the structure report.
             // CompensationRow is a value type (struct), so we check for existence
-            // via Any(...) rather than a null comparison on FirstOrDefault.
+            // via count rather than a null comparison on FirstOrDefault.
             var gdRows = rows
                 .Where(r => string.Equals((r.Grade ?? string.Empty).Trim(), "GD", StringComparison.OrdinalIgnoreCase))
                 .ToList();
