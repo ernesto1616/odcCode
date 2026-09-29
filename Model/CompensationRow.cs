@@ -16,7 +16,6 @@ namespace CompensationExportLibrary.Models
         [OSStructureField] public decimal StructureAdjustement { get; set; }
         [OSStructureField] public decimal MeritElement { get; set; }
         [OSStructureField] public decimal CPIInflation { get; set; }
-
         [OSStructureField] public string Region { get; set; }
         [OSStructureField] public string Country { get; set; }
         [OSStructureField] public string SalaryPlan { get; set; }
