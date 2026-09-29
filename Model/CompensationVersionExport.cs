@@ -7,9 +7,6 @@ namespace CompensationExportLibrary.Models
     public struct CompensationVersionExport
     {
         [OSStructureField] public string SalaryScaleModelName { get; set; }
-        [OSStructureField] public decimal StructureLimit { get; set; }
-        [OSStructureField] public string Market { get; set; }
-        [OSStructureField] public decimal CPH { get; set; }
         [OSStructureField] public List<CompensationRow> Rows { get; set; }
     }
 }
