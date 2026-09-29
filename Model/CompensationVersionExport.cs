@@ -3,10 +3,13 @@ using OutSystems.ExternalLibraries.SDK;
 
 namespace CompensationExportLibrary.Models
 {
-    [OSStructure(Description = "One compensation version = one folder in the ZIP")]
+    [OSStructure(Description = "One compensation model/version to append to the five combined reports")]
     public struct CompensationVersionExport
     {
         [OSStructureField] public string SalaryScaleModelName { get; set; }
+        [OSStructureField] public decimal StructureLimit { get; set; }
+        [OSStructureField] public string Market { get; set; }
+        [OSStructureField] public decimal CPH { get; set; }
         [OSStructureField] public List<CompensationRow> Rows { get; set; }
     }
 }
