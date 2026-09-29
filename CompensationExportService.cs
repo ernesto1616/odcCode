@@ -64,7 +64,7 @@ namespace CompensationExportLibrary
             {
                 var version = versions[v];
                 var rows = version.Rows ?? new List<CompensationRow>();
-                var name = BuildModelName(version, rows, v + 1);
+                var name = ValidateAndGetModelName(version, rows, v + 1);
                 foreach (var r in rows.OrderBy(GradeRank))
                 {
                     var grade = (r.Grade ?? string.Empty).Trim();
@@ -103,13 +103,11 @@ namespace CompensationExportLibrary
             return output.ToArray();
         }
 
-        private static string BuildModelName(CompensationVersionExport version, List<CompensationRow> rows, int index)
+        private static string ValidateAndGetModelName(CompensationVersionExport version, List<CompensationRow> rows, int index)
         {
             var model = version.SalaryScaleModelName?.Trim();
             if (string.IsNullOrWhiteSpace(model))
                 throw new ArgumentException($"Version {index}: SalaryScaleModelName is required.");
-            if (string.IsNullOrWhiteSpace(version.Market))
-                throw new ArgumentException($"Version {index}: Market is required.");
             // A version without rows contributes no data to any report.
             if (rows.Count == 0)
                 return model;
@@ -121,7 +119,7 @@ namespace CompensationExportLibrary
                 if (!string.Equals(rows[i].SalaryScaleModelName?.Trim(), model, StringComparison.Ordinal))
                     throw new ArgumentException($"Version {index}, row {i + 1}: SalaryScaleModelName must match the version name.");
             }
-            return $"{model} Final CPI {D(first.CPIInflation)} SL {D(version.StructureLimit)} ME {D(first.MeritElement)} MKT {version.Market.Trim()} CPH {D(version.CPH)}";
+            return model;
         }
 
         private static int GradeRank(CompensationRow row) =>
