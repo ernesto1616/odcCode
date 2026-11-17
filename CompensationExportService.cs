@@ -40,6 +40,7 @@ namespace CompensationExportLibrary
         private static readonly string[] StHeaders = Headers("ST Category", "ST Frequency", "ST Grade", "Avg. ST Minimum", "ST Midpoint", "Avg. ST Maximum", "ST Status");
         private static readonly string[] UHeaders = Headers("Category", "Pay Frequency", "U Grade", "UC/UA Minimum", "UC/UA Midpoint", "UC/UA Maximum", "UC/UA Status");
         private static readonly string[] UjHeaders = Headers("UJ Category", "Pay Frequency", "UJ Grade", "UJ Minimum", "UJ Midpoint", "UJ Maximum", "UJ Status");
+        private static readonly string[] UsHeaders = Headers("Category", "Pay Frequency", "Grade", "Avg. Minimum (US)", "Midpoint (US)", "Avg. Maximum (US)", "Status (US)");
 
         private static string[] Headers(string category, string frequency, string grade, string min, string mid, string max, string status)
         {
@@ -48,7 +49,13 @@ namespace CompensationExportLibrary
                 "Scale Rounding", "Total Merit Increase", "Structure Adjustment", "Merit Element", "CPI Inflation", "HQ/CO" };
         }
 
-        public byte[] GenerateCompensationZip(List<CompensationVersionExport> versions)
+        public byte[] GenerateCompensationZip(List<CompensationVersionExport> versions) =>
+            BuildZip(versions, null);
+
+        public byte[] GenerateCompensationZipWithUS(List<CompensationVersionExport> versions, List<USScaleRow> usScaleRows) =>
+            BuildZip(versions, usScaleRows ?? new List<USScaleRow>());
+
+        private static byte[] BuildZip(List<CompensationVersionExport> versions, List<USScaleRow> usRows)
         {
             if (versions == null || versions.Count == 0)
                 throw new ArgumentException("At least one compensation version is required.", nameof(versions));
@@ -99,6 +106,9 @@ namespace CompensationExportLibrary
                 AddWorkbook(archive, "ST Scale Output Report.xlsx", StHeaders, st);
                 AddWorkbook(archive, "UC_UA Scale Output Report.xlsx", UHeaders, u);
                 AddWorkbook(archive, "UJ Scale Output Report.xlsx", UjHeaders, uj);
+                // Sixth file only when called through GenerateCompensationZipWithUS (rows kept in received order).
+                if (usRows != null)
+                    AddWorkbook(archive, "US Scale Output Report.xlsx", UsHeaders, usRows.Select(UsReportRow).ToList());
             }
             return output.ToArray();
         }
@@ -146,10 +156,24 @@ namespace CompensationExportLibrary
                 P(r.CPIInflation), r.HCCO };
         }
 
+        private static string[] UsReportRow(USScaleRow r)
+        {
+            return new[] { r.StructureModelName, FormatDate(r.EffectiveDate), r.Region, r.Country, r.SalaryPlan, r.PayType,
+                r.Category, r.PayFrequency, r.GradeGroup, r.Grade,
+                r.HasMinimum ? D2Max(r.AvgMinimum) : string.Empty,
+                r.HasMidpoint ? D2Max(r.Midpoint) : string.Empty,
+                r.HasMaximum ? D2Max(r.AvgMaximum) : string.Empty,
+                r.Currency, r.Code, r.Status,
+                D(r.ScaleRounding), P(r.TotalMeritIncrease), P(r.StructureAdjustment), P(r.MeritElement),
+                P(r.CPIInflation), r.HQCO };
+        }
+
         private static decimal CeilingToMultiple(decimal value, decimal rounding) =>
             rounding <= 0 ? value : Math.Ceiling(value / rounding) * rounding;
         private static string D(decimal value) => value.ToString("0.############################", CultureInfo.InvariantCulture);
         private static string D2(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero).ToString("0.00", CultureInfo.InvariantCulture);
+        // Up to 2 decimals, without trailing zeros (e.g. 1234.5, 1200).
+        private static string D2Max(decimal value) => D(Math.Round(value, 2, MidpointRounding.AwayFromZero));
         private static string P(decimal value) => D(value) + "%";
         private static string FormatDate(string value)
         {
